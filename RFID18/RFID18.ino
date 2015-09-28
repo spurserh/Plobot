@@ -54,10 +54,11 @@ DCMotor motor1(M1EN, M11, M12);
 #define VCC_LED  2
 
 #ifdef ENCODERS
-#define ENCODER_T 400
+#define ENCODER_T 1000
 #define speedMotors 80.0
 #define LEVEL_ENCODER 255
 
+#define INTERRUPTS 0
 
 #define ENCODER1 1
 #define ENCODER2 0
@@ -199,7 +200,10 @@ void setup() {
   digitalWrite( VCC_LED, HIGH);
   pinMode(SPEAKER, OUTPUT);
 
+#if INTERRUPTS
   InitialiseInterrupt();
+#endif
+
 #ifdef ENCODERS
 
   pinMode(ENCODER1, INPUT);	   //
@@ -224,6 +228,22 @@ void loop() {
   if (Serial1.available()) readByte();
   EXEC(Simple);  // run statemachine
   runBitlash();  // keeps the latency, checks for new commands on Serial0
+}
+
+void count_encoders() {
+  encoderState1 = digitalRead(ENCODER1);  // compare the encoder to its previous state
+  if (encoderState1 != lastEncoderState1) { // if the current state is HIGH then the enocder changed pole from north to south
+    encoderCounter1++;  // if the state has changed, increment the counter
+    if  (encoderCounter1 >= stepsA)  motor0.setSpeed(0);
+  }
+  lastEncoderState1 = encoderState1;// save the current state as the last state,
+
+  encoderState2 = digitalRead(ENCODER2);  // compare the encoder to its previous state
+  if (encoderState2 != lastEncoderState2) { // if the current state is HIGH then the enocder changed pole from north to south
+    encoderCounter2++;  // if the state has changed, increment the counter
+    if  (encoderCounter2 >= stepsB ) motor1.setSpeed(0);
+  }
+  lastEncoderState2 = encoderState2;// save the current state as the last state,
 }
 
 
@@ -421,16 +441,16 @@ char* readCommand( int commandId ) {
       return "snooze(1000);\r\n";      //wait
       break;
     case 21:
-      return "mv(2,-80,200,200); snooze(300);\r\n";    //Forward
+      return "mv(2,-80,30,30); snooze(300);\r\n";    //Forward
       break;
     case 22:
-      return "mv(2,80,200,200); snooze(300);\r\n";    //Back
+      return "mv(2,80,30,30); snooze(300);\r\n";    //Back
       break;
     case 23:
-      return "mv(3,80,350,350); snooze(300);\r\n";    //Right
+      return "mv(3,80,35,35); snooze(300);\r\n";    //Right
       break;
     case 24:
-      return "mv(4,80,350,350);  snooze(300);\r\n";    //Left
+      return "mv(4,80,35,35);  snooze(300);\r\n";    //Left
       break;
     case 25: //RED
       return  "r=r+63; aw(3,r);\r\n;";    //
@@ -514,17 +534,31 @@ numvar move_motors(void) {   // gets which DC motor,
     Serial.print("Counting Right:");
     Serial.println(stepsB, DEC);
 #ifdef ENCODERS
+    // No serial prints allowed in this loop
     while (  (encoderCounter1 < stepsA) || (encoderCounter2 < stepsB )) {
+#if !INTERRUPTS
+     count_encoders();
+#endif
       if  (encoderCounter1 > stepsA)  motor0.setSpeed(0);
       if  (encoderCounter2 > stepsB ) motor1.setSpeed(0);
       if (motorTimeout < millis()) {
-        Serial.println("TIMEOUT -  check encoders");
+        Serial.print("TIMEOUT -  check encoders: ");
+        Serial.print("[");
+        Serial.print(encoderCounter1);
+        Serial.print(" ");
+        Serial.print(stepsA);
+        Serial.print("], [");
+        Serial.print(encoderCounter2);
+        Serial.print(" ");
+        Serial.print(stepsB);
+        Serial.println("]");
         motor0.setSpeed(0);    //if it was timeout
         motor1.setSpeed(0);
         return 0;
       }
-    }
+    }  
 #endif
+
     Serial.print( "Encoder 1 ran: ");
     Serial.println(encoderCounter1);
     Serial.print( "Encoder 2 ran: ");
@@ -555,6 +589,7 @@ void changeColor (int newValueR, int newValueG, int newValueB ) {
   //  analogWrite(BLUE_LED,newValueB);
 }
 
+#if INTERRUPTS
 #ifdef ENCODERS
 void InitialiseInterrupt() {
   cli();		// switch interrupts off while messing with their settings
@@ -567,27 +602,10 @@ void InitialiseInterrupt() {
 }
 
 ISR(PCINT1_vect) {    // Interrupt service routine for pins with PCINT8~15
-  encoderState1 = digitalRead(ENCODER1);  // compare the encoder to its previous state
-  if (encoderState1 != lastEncoderState1) { // if the current state is HIGH then the enocder changed pole from north to south
-    encoderCounter1++;  // if the state has changed, increment the counter
-    if  (encoderCounter1 >= stepsA)  motor0.setSpeed(0);
-  }
-  lastEncoderState1 = encoderState1;// save the current state as the last state,
-
-  encoderState2 = digitalRead(ENCODER2);  // compare the encoder to its previous state
-  if (encoderState2 != lastEncoderState2) { // if the current state is HIGH then the enocder changed pole from north to south
-    encoderCounter2++;  // if the state has changed, increment the counter
-    if  (encoderCounter2 >= stepsB ) motor1.setSpeed(0);
-  }
-  lastEncoderState2 = encoderState2;// save the current state as the last state,
-
-
-
-  //  Serial.println(encoderCounter1);
-  //  Serial.println(encoderCounter2);
-
+  count_encoders();
   PCIFR = 0;    // JUST FOR HEALTH OF THE CODE
 }
+#endif
 #endif
 
 
