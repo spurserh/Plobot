@@ -112,9 +112,7 @@ void setup() {
 void loop(void) {
   // 1Khz tone
   for(unsigned char val=0;;++val) {
-   
     OCR2A = val;
-    
     delayMicroseconds(4);
   }
 }
