@@ -64,12 +64,12 @@ DCMotor motor1(M1EN, M11, M12);
 #define ENCODER2 0
 
 // ideally these would be flags and with assembler we increment the counter that is refreshed in main loop...
-unsigned long int encoderCounter1 = 0;   // counter for the times the encoder changed state
-byte encoderState1 = 0;         // current state of encoder as read by interrrupt service
-byte lastEncoderState1 = 0;     // previous state of encoder
-unsigned long int encoderCounter2 = 0;   // counter for the times the encoder changed state
-byte encoderState2 = 0;
-byte lastEncoderState2 = 0;
+volatile unsigned long int encoderCounter1 = 0;   // counter for the times the encoder changed state
+volatile byte encoderState1 = 0;         // current state of encoder as read by interrrupt service
+volatile byte lastEncoderState1 = 0;     // previous state of encoder
+volatile unsigned long int encoderCounter2 = 0;   // counter for the times the encoder changed state
+volatile byte encoderState2 = 0;
+volatile byte lastEncoderState2 = 0;
 
 int stepsA;
 int stepsB;

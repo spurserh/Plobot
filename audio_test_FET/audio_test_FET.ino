@@ -61,7 +61,10 @@ void setup() {
   // No prescaler (p.158)
   TCCR2B = (TCCR2B & ~(_BV(CS12) | _BV(CS11))) | _BV(CS10);
   
-  OCR2A = 0;
+  // Off: Half voltage
+  OCR2A = 128;
+  
+  delay(3000);
 
   Serial.print("\nInitializing SD card...");
 
@@ -108,11 +111,31 @@ void setup() {
   }
 }
 
-
 void loop(void) {
-  // 1Khz tone
-  for(unsigned char val=0;;++val) {
-    OCR2A = val;
+  #if 1
+  
+  // TODO: Stream properly, this will skip
+
+  uint8_t block_mem[512];
+  for(unsigned long block=0;;++block) {
+    if(!card.readBlock(block, &block_mem[0])) {
+      Serial.println("Failed to read block");
+    }
+    
+    for(unsigned int idx=0;idx<512;++idx) {
+      // Inverting gate
+      OCR2A = 255 - block_mem[idx];
+      
+      // 16khz
+      delayMicroseconds(62);
+    }
+  }
+  #else
+  for(uint8_t i=0;i<256;++i) {
+//    OCR2A = uint8_t(127.0f + 127.0f * sin(float(micros()) / 4000.0f));
+
+    OCR2A = i;
     delayMicroseconds(4);
   }
+  #endif
 }
