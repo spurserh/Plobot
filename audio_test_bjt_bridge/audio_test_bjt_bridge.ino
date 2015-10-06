@@ -47,6 +47,12 @@ void setup() {
 
   // High impedance
   pinMode(sSpeakerPin, INPUT);
+  
+  TIMSK2 = 0;
+  ASSR &= ~_BV(AS2);
+  // Clear Timer on Compare Match (CTC) mode
+  TCCR2A = _BV(WGM21);
+  TCCR2B = _BV(CS20);
 
   Serial.print("\nInitializing SD card...");
 
@@ -80,37 +86,55 @@ void setup() {
 
 }
 
+static boolean isr_active_phase = false;
+static uint8_t isr_active_count = 0, isr_inactive_count = 0;
+static uint8_t isr_ddrd_active_mask = B00000011, isr_ddrd_inactive_mask = B11111100;
+
+ISR(TIMER2_COMPA_vect)
+{
+  if(isr_active_phase) {
+    //DDRD = DDRD & isr_ddrd_active_mask;
+    PORTD = 0x00;
+    OCR2A = isr_inactive_count;
+  } else {
+    //DDRD = DDRD | isr_ddrd_inactive_mask;
+    PORTD = 0xFF;
+    OCR2A = isr_active_count;
+  }
+  isr_active_phase = !isr_active_phase;
+}
+
 void loop(void) {  
   // TODO: Stream properly, this will skip
-  int8_t block_mem[512];
+  uint16_t block_mem[256];
   for(unsigned long block=0;;++block) {
+    DDRD = DDRD & B00000011;
     if(!card.readBlock(block, (uint8_t*)(&block_mem[0]))) {
       Serial.println("Failed to read block");
     }
     
-    for(unsigned int idx=0;idx<512;++idx) {
-      const int8_t sample = block_mem[idx];
+    DDRD = DDRD | B11111100;
+    for(unsigned int idx=0;idx<256;++idx) {
+      const uint16_t sample = block_mem[idx];
       
       // 4 clock cyles per iteration makes a maximum of 255*4 = 1020 cycles.
       // 16mhz / 16khz = 1000 cycles per sample.
       // Close enough!
-      
-      // Dead time      
-      DDRD = DDRD & B00000011;
-      _delay_loop_2(1);
-      
-      // TODO: Direct pins for timing
-      const uint8_t sample_mag = abs(sample);
-      if(sample_mag < 125) {
-        _delay_loop_2(255 - (sample_mag << 1));
+      const uint8_t sample_8 = sample >> 8;
+
+      TIMSK2 = 0;
+      //PORTD = (sample_8 > 128) ? 0xFF : 0x00;
+      if(sample_8 > 32 && sample_8 < 223) {
+        isr_active_phase = true;
+        isr_active_count = sample_8;
+        isr_inactive_count = 255 - sample_8;
+        TIMSK2 |= _BV(OCIE2A);
       }
-      
-      if(sample != 0) {
-        PORTD = (sample > 0) ? 0xFF : 0x00;
-        DDRD = DDRD | B11111100;
-        _delay_loop_2(sample_mag << 1);
-      }
+
+      // 16khz
+      //delayMicroseconds(62);
+      delayMicroseconds(40);
     }
-    DDRD = DDRD & B00000011;
+    
   }
 }
