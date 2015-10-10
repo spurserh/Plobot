@@ -20,6 +20,6 @@ void setup() {
 }
 
 void loop(void) {
-  SDAudio::StreamBlocks(card, 0, 250);
+  SDAudio::StreamBlocks(card, 0, 5000);
   delay(750);
 }
