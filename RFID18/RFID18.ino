@@ -71,8 +71,8 @@ volatile unsigned long int encoderCounter2 = 0;   // counter for the times the e
 volatile byte encoderState2 = 0;
 volatile byte lastEncoderState2 = 0;
 
-int stepsA;
-int stepsB;
+volatile int stepsA = 0;
+volatile int stepsB = 0;
 #endif
 
 #ifdef MUSIC
@@ -495,16 +495,17 @@ void recordCard ( void ) {
 }
 
 #ifdef MOTOR
-numvar move_motors(void) {   // gets which DC motor,
-  byte     which = getarg(1);
-  if ((getarg(0) == 1) && (!which) ) {    //if no speed param, it stops
+int move_motors(byte which, int fast, int in_stepsA, int in_stepsB) {
+  stepsA = in_stepsA;
+  stepsB = in_stepsB;
+  
+  
+  if (!which) {
     motor0.brake();
     motor1.brake();
     return 1;
   }
   else {
-    // boolean  how = getarg(2);
-    int      fast = getarg(2);
     if (which == 0) {
       motor0.setSpeed(fast);
     }
@@ -523,8 +524,6 @@ numvar move_motors(void) {   // gets which DC motor,
       motor0.setSpeed(fast);
       motor1.setSpeed(-fast);
     }
-    stepsA = getarg(3);
-    stepsB = getarg(4);   // this might not be working
 
     long motorTimeout = millis() + ENCODER_T;
     encoderCounter1 = 0;
@@ -569,6 +568,14 @@ numvar move_motors(void) {   // gets which DC motor,
     //  interrupts();
   }
   return 0;
+}
+
+numvar move_motors(void) {   // gets which DC motor,
+  byte     which = getarg(1);
+  int      fast = getarg(2);
+  int arg_stepsA = getarg(3);
+  int arg_stepsB = getarg(4);   // this might not be working
+  return move_motors(which, fast, arg_stepsA, arg_stepsB);
 }
 #endif
 
