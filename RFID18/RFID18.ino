@@ -23,7 +23,7 @@
 
  */
 #define MOTOR
-#define ENCODERS
+#define ENCODERS 1
 #define MUSIC
 
 #include <SM.h>
@@ -54,7 +54,7 @@ DCMotor motor1(M1EN, M11, M12);
 #define VCC_LED  2
 
 #ifdef ENCODERS
-#define ENCODER_T 1000
+#define ENCODER_T 250
 #define speedMotors 80.0
 #define LEVEL_ENCODER 255
 
@@ -118,47 +118,47 @@ char *song = "Gadget:d=16,o=5,b=50:32d#,32f,32f#,32g#,a#,f#,a,f,g#,f#,32d#,32f,3
 
 
 unsigned long int tag[] = {
-  /*Special Cards*/
-  29271,    // Tag 1
+   //Multiple Cards from set YCIS - Shanghai
+  //Special Cards
+  29271,    // Tag 1   
   10820,    // Tag 2
   10850,    // Tag 3
   26791,    // Tag 4
   29285,    // Tag 5
   27526,    // Tag 6
   27540,    // Tag 7
-  0x079AA36,    // Tag 8    RUN
-  0x0785EF5,    // Tag 9    RESET
+  0x059398F,    // Tag 8    RUN
+  0x08D5892,    // Tag 9    RESET
   123,// Tag 10
-  /*Music Cards*/
-  0x0784623,    // Tag 11 BIRTHDAY
-  0x078461B,    // Tag 12  MONEY
-  0x078461F,    // Tag 13  POLICE
-  0x078461D,    // Tag 14  BELL
-  0x0784621,    // Tag 15  SOUND
+  //Music Cards
+  0x0784611,    // Tag 11 BIRTHDAY
+  0x0784619,    // Tag 12  MONEY
+  0x0784615,    // Tag 13  POLICE
+  0x0784617,    // Tag 14  BELL
+  0x026425C,    // Tag 15  SOUND
   27731,    // Tag 16
   0x0785EF3,    // Tag 17
-  0x0785EF5,    // Tag 18          RESET
-  0x0785EF9,    // Tag 19          REPEAT
-  0x078558E,//29104,    // Tag 20 PAUSE
-  /*Motor Cards*/
-  0x0797D75,    // Tag 21       FWD
-  0x079AA2E,    // Tag 22       BKD
-  0x079AA3A,    // Tag 23       RIGHT
-  0x079AA38,    // Tag 24       LEFT
-  0x0785558,    // Tag 25        RED
-  0x0785562,    // Tag 26        GREEN
-  0x0785556,    // Tag 27        BLUE
+  0x08D5892,    // Tag 18          RESET
+  0x0264258,    // Tag 19          REPEAT
+  0x08D37E0,    //29104,    // Tag 20 PAUSE
+  //Motor Cards
+  0x0264256,    // Tag 21       FWD
+  0x026425A,    // Tag 22       BKD
+  0x026424B,    // Tag 23       RIGHT
+  0x0264254,    // Tag 24       LEFT
+  0x026426F,    // Tag 25        RED
+  0x078555A,    // Tag 26        GREEN
+  0x0785548,    // Tag 27        BLUE
   0x0785EFD,    // Tag 28
   1234,// 29291,    // Tag 29
-  /*SENSOR Cards*/
-  0x0785564,    // Tag 30     WATCH
-  0x0785560,    // Tag 31       SEARCH
-  29291,    // Tag 32
-  29291,    // Tag 33
+  //SENSOR Cards
+  0x0785552,    // Tag 30     WATCH
+  0x0785554,    // Tag 31     SEARCH
+  0x0785EFF,    // Tag 32     DRAW (untested)
+  0x0785EE0,    // Tag 33     IF (untested)
   29291,    // Tag 34 1
   29291,    // Tag 35
   29291,    // Tag 36
-
 };
 
 
@@ -172,7 +172,7 @@ int validTag = 0;
 //int unit[] = {2, 3}; // Pins 2 and 3
 //int unitState[] = {LOW, LOW}; // Both start in the off position
 long lastRead; // the time when we last read a tag
-long timeOut = 1000; // required time between reads
+long timeOut = 300; // required time between reads
 
 unsigned long int tempTAG = 0;
 unsigned long int currentTAG = 0;
@@ -182,6 +182,7 @@ float in; // to make the LED smooth blink
 
 int memoryExec[64];
 int positionMemory = 0;
+int iteratePositionMemory = 0;
 #define totalMemory 64   //it was 16 but kids got bored easily
 
 
@@ -228,6 +229,7 @@ void loop() {
   if (Serial1.available()) readByte();
   EXEC(Simple);  // run statemachine
   runBitlash();  // keeps the latency, checks for new commands on Serial0
+
 }
 
 void count_encoders() {
@@ -265,7 +267,7 @@ State S1() {     //This state reads and records commands
         case 7:
         case 8:
           Serial.println("executing cards recorded");
-          positionMemory = 0;
+          iteratePositionMemory = 0;
 
           changeColor(255, 0, 255);
           tone (SPEAKER, 660, 100);
@@ -305,15 +307,15 @@ State S1() {     //This state reads and records commands
 
 State S2() { //This state executes the commands
   //tone (SPEAKER, 550, 100);
-  if ( positionMemory < totalMemory ) {
+  if ( iteratePositionMemory < positionMemory ) {
 
-    doCommand( (char*)readCommand( memoryExec[positionMemory] ));
+    doCommand( (char*)readCommand( memoryExec[iteratePositionMemory] ));
     //doCommand("beep(22,660,1000);");
     //  char* response = (char*)readCommand( memoryExec[positionMemory] );
 
-    Serial.print( "executing command with " + String( positionMemory ) );
-    Serial.println( "that means: " + memoryExec[positionMemory]  );
-    positionMemory++;
+    Serial.print( "executing command with " + String( iteratePositionMemory ) );
+    Serial.println( "that means: " + memoryExec[iteratePositionMemory]  );
+    iteratePositionMemory++;
     // validTag = 0;
   }
   else {     // if it's the last command it changes state to S1
@@ -331,7 +333,6 @@ State S4() { // This state runs after a startup or
   doCommand( "g=0; b=0; r=0;" );
   // doCommand( "aw(10,g); aw(12,b);aw(13,r); \r\n" );
   delay(100);
-  positionMemory = 0;
   //changeColor ( 255, 255, 255);
   delay(500);
   Simple.Set(S1);//wait for toggle pin to go low and change state to S1
