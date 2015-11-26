@@ -192,6 +192,7 @@ void setup() {
 #ifdef MOTOR
   addBitlashFunction("mv", (bitlash_function) move_motors );
 #endif
+  addBitlashFunction("temp_blink", (bitlash_function) temp_blink );
   lastRead = millis(); // Initalize to the sketch's start time
   pinMode( GREEN_LED, OUTPUT);
   pinMode( BLUE_LED, OUTPUT);
@@ -423,7 +424,7 @@ char* readCommand( int commandId ) {
       return "beep(15,294,500);\r\n";      //D4
       break;
     case 15:
-      return "beep(15,330,500);\r\n";      //E4
+      return "beep(15,600,150);beep(15,330,250);beep(15,600,150);beep(15,330,250);beep(15,600,150);beep(15,330,250);beep(15,600,150);beep(15,330,250);\r\n";      //E4
       break;
     case 16:
       return  "beep(15,349,500);\r\n";     //F4
@@ -454,7 +455,9 @@ char* readCommand( int commandId ) {
       return "mv(4,80,35,35);  snooze(300);\r\n";    //Left
       break;
     case 25: //RED
-      return  "r=r+63; aw(3,r);\r\n;";    //
+      //return  "r=r+63; aw(3,r);\r\n;";    //
+      //return color_flashes[sizeof(color_flashes)/sizeof(*color_flashes)];
+      return "temp_blink();\r\n";
       break;
     case 26: //GREEN
       return  "g=g+63; aw(4,g); \r\n";
@@ -493,6 +496,32 @@ void recordCard ( void ) {
   analogWrite(RED_LED, 0);
   analogWrite(BLUE_LED, 0);
   analogWrite(GREEN_LED, 0);
+}
+
+void temp_blink() {
+  static const unsigned long colors[] = {
+    0x000000FF,
+    0x0000FF00,
+    0x00FF0000,
+    0x00FF00FF,
+    0x00FFFF00,
+    0x00FFFFFF,
+  };
+  
+  const int ci = random(sizeof(colors)/sizeof(*colors));
+  
+  for(int i=0;i<10;++i) {
+    analogWrite(GREEN_LED, (colors[ci] & 0xFF) >> 0);
+    analogWrite(RED_LED, (colors[ci] & 0xFF00) >> 8);
+    analogWrite(BLUE_LED, (colors[ci] & 0xFF0000) >> 16);
+    delay(100);
+
+    analogWrite(GREEN_LED, 0);
+    analogWrite(RED_LED, 0);
+    analogWrite(BLUE_LED, 0);
+    delay(50);
+  }
+  
 }
 
 #ifdef MOTOR
@@ -581,6 +610,8 @@ numvar move_motors(void) {   // gets which DC motor,
 #endif
 
 void pulseLED(void) {
+  analogWrite(RED_LED, 0);
+  analogWrite(BLUE_LED, 0);
   in = in + 0.0005;
   if ( in < 6.283) {
     float out = sin(in) * 127.5 + 127.5;
